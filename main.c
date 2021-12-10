@@ -42,8 +42,12 @@
 #pragma config CP = OFF         // UserNVM Program memory code protection bit (UserNVM code protection disabled)
 
 #include <xc.h>
+#include "pwm.h"
+#include "keys.h"
 
 #define _XTAL_FREQ 1000000
+
+uint8_t click;
 
 void main(void) {
     /*
@@ -59,31 +63,23 @@ void main(void) {
     RA3PPS = 0x03;
     RA2PPS = 0x02;
     
-    /*
-     * PWM setup
-     * FOSC/4 with a prescaler of 4
-     * PR2 of 255 for 245Hz
-     * 10 bit PWM resolution
-     * PWM3 on RA1
-     * PWM4 on RA0
-     */
-    T2CLKCON = 0x01;
-    T2CON = 0x10;
-    PR2 = 255;
-    RA1PPS = 0x0B;
-    PWM3CON = 0x80;
-    RA0PPS = 0x0C;
-    PWM4CON = 0x80;
-    
-    // For test purposes. 50% duty cycle
-    // TODO: Read duty cycle from memory
-    PWM3DCH = 0x80;
-    PWM3DCL = 0x00;
-    PWM4DCH = 0x80;
-    PWM4DCL = 0x00;
+    init_pwm();
+    pwm_wrduty(&PWM3DCH, 512);
+    pwm_wrduty(&PWM4DCH, 256);
     
     T2CONbits.TMR2ON = 1;
     while (1) {
-        // TODO: Increase/decrease PWM duty cycle based on user input (clicks)
+        // TODO: Implement status
+        click = read_click();
+        switch (click) {
+            case UP_CLICK:
+                pwm_increase(&PWM3DCH);
+                pwm_increase(&PWM4DCH);
+                break;
+            case DOWN_CLICK:
+                pwm_decrease(&PWM3DCH);
+                pwm_decrease(&PWM4DCH);
+                break;
+        }
     }
 }
