@@ -38,6 +38,9 @@ void pwm_increase(volatile uint8_t *pwm) {
         duty += 51;
         pwm_wrduty(pwm, duty);
     }
+    else {
+        pwm_wrduty(pwm, 1023);
+    }
 }
 
 void pwm_decrease(volatile uint8_t *pwm) {

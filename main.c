@@ -64,7 +64,7 @@ void main(void) {
     RA2PPS = 0x02;
     
     init_pwm();
-    pwm_wrduty(&PWM3DCH, 512);
+    pwm_wrduty(&PWM3DCH, 256);
     pwm_wrduty(&PWM4DCH, 256);
     
     T2CONbits.TMR2ON = 1;
