@@ -11,7 +11,8 @@
 #define POWER_BTN PORTAbits.RA3
 #define DOWN_BTN PORTAbits.RA2
 
-#define is_pushed(x, val) __delay_ms(32); if (x != 0) { return 0; } while (x == 0); return val;
+#define is_clicked(x, val) __delay_ms(32); if (x != 0) { return 0; } while (x == 0); return val;
+#define is_pressed(x, val) __delay_ms(32); if (x != 0) { return 0; } __delay_ms(100); return val;
 
 #define MODE_ONE_CLICK 'A'
 #define MODE_TWO_CLICK 'B'

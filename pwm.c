@@ -19,31 +19,34 @@ void init_pwm(void) {
 }
 
 void pwm_wrduty(volatile uint8_t *pwm, uint16_t duty) {
-    *pwm = ((duty >> 2) & 0xFF); 
-    *(pwm - 1) = ((duty << 6) & 0xC0);
+    *pwm = (duty >> 2) & 0xFF; 
+    *(pwm - 1) = (duty << 6) & 0xC0;
 }
 
 uint16_t pwm_rdduty(volatile uint8_t *pwm) {
     uint16_t duty;
     duty = *pwm;
     duty = duty << 2;
-    duty |= ((*pwm -1) >> 6);
+    duty |= *(pwm - 1) >> 6;
     
     return duty;
 }
 
 void pwm_increase(volatile uint8_t *pwm) {
     uint16_t duty = pwm_rdduty(pwm);
-    duty += 102;
-    if (duty <= 918) {
+    if (duty <= 920) {
+        duty += 51;
         pwm_wrduty(pwm, duty);
     }
 }
 
 void pwm_decrease(volatile uint8_t *pwm) {
     uint16_t duty = pwm_rdduty(pwm);
-    duty -= 102;
-    if (duty >= 102) {
+    if (duty > 51) {
+        duty -= 51;
         pwm_wrduty(pwm, duty);
+    }
+    else {
+        pwm_wrduty(pwm, 0);
     }
 }

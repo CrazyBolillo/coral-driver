@@ -57,7 +57,7 @@ void main(void) {
     LATA = 0x00;
     ANSELA = 0x00;
     TRISA = 0xFC;
-    WPUA = 0b00111100;
+    WPUA = TRISA;
     RA5PPS = 0x05;
     RA4PPS = 0x04;
     RA3PPS = 0x03;
