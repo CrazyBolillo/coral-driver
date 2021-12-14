@@ -2,15 +2,15 @@
 
 /*
  * PWM setup
- * FOSC/4 with a prescaler of 4
- * PR2 of 255 for 245Hz
+ * FOSC/4 with a prescaler of 8
+ * PR2 of 255 for 122Hz
  * 10 bit PWM resolution
  * PWM3 on RA1
  * PWM4 on RA0
 */
 void init_pwm(void) {
     T2CLKCON = 0x01;
-    T2CON = 0x10;
+    T2CON = 0x30;
     PR2 = 255;
     RA1PPS = 0x0B;
     PWM3CON = 0x80;

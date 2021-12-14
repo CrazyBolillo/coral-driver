@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <xc.h>
 
+#define pwm_off() T2CONbits.TMR2ON = 0;
+#define pwm_on() T2CONbits.TMR2ON = 1;
+
 void init_pwm(void);
 
 void pwm_wrduty(volatile uint8_t *pwm, uint16_t duty);

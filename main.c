@@ -47,7 +47,12 @@
 
 #define _XTAL_FREQ 1000000
 
+#define STATUS_BLINK_SEP 'S'
+#define STATUS_BLINK_TOG 'T'
+#define STATUS_FIXED 'F'
+
 uint8_t click;
+uint8_t status = STATUS_FIXED;
 
 void main(void) {
     /*
@@ -66,20 +71,27 @@ void main(void) {
     init_pwm();
     pwm_wrduty(&PWM3DCH, 256);
     pwm_wrduty(&PWM4DCH, 256);
+    pwm_on();
     
-    T2CONbits.TMR2ON = 1;
     while (1) {
-        // TODO: Implement status
         click = read_click();
-        switch (click) {
-            case UP_CLICK:
-                pwm_increase(&PWM3DCH);
-                pwm_increase(&PWM4DCH);
-                break;
-            case DOWN_CLICK:
-                pwm_decrease(&PWM3DCH);
-                pwm_decrease(&PWM4DCH);
-                break;
+        if (status == STATUS_FIXED) {
+            switch (click) {
+                case UP_CLICK:
+                   pwm_increase(&PWM3DCH);
+                   pwm_increase(&PWM4DCH);
+                   break;
+                case DOWN_CLICK:
+                   pwm_decrease(&PWM3DCH);
+                   pwm_decrease(&PWM4DCH);
+                   break;
+                case MODE_ONE_CLICK: 
+                   status = STATUS_BLINK_TOG;
+            } 
         }
+        if (status == STATUS_BLINK_TOG) {
+            // TODO IMPLEMENT TMR0 for blinking
+        }  
     }
+    
 }
