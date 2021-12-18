@@ -34,8 +34,8 @@ uint16_t pwm_rdduty(volatile uint8_t *pwm) {
 
 void pwm_increase(volatile uint8_t *pwm) {
     uint16_t duty = pwm_rdduty(pwm);
-    if (duty <= 920) {
-        duty += 51;
+    if (duty <= (PWM_LIMIT - PWM_STEP_SIZE)) {
+        duty += PWM_STEP_SIZE;
         pwm_wrduty(pwm, duty);
     }
     else {
@@ -45,11 +45,8 @@ void pwm_increase(volatile uint8_t *pwm) {
 
 void pwm_decrease(volatile uint8_t *pwm) {
     uint16_t duty = pwm_rdduty(pwm);
-    if (duty > 51) {
-        duty -= 51;
+    if (duty > PWM_STEP_SIZE) {
+        duty -= PWM_STEP_SIZE;
         pwm_wrduty(pwm, duty);
-    }
-    else {
-        pwm_wrduty(pwm, 0);
     }
 }

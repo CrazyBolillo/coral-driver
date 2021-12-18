@@ -7,6 +7,10 @@
 #define pwm_off() T2CONbits.TMR2ON = 0;
 #define pwm_on() T2CONbits.TMR2ON = 1;
 
+#define PWM_STEP_SIZE 20
+#define PWM_STEPS 48
+#define PWM_LIMIT PWM_STEP_SIZE * PWM_STEPS
+
 void init_pwm(void);
 
 void pwm_wrduty(volatile uint8_t *pwm, uint16_t duty);

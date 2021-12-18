@@ -42,6 +42,7 @@
 #pragma config CP = OFF         // UserNVM Program memory code protection bit (UserNVM code protection disabled)
 
 #include <xc.h>
+#include <stdbool.h>
 #include "pwm.h"
 #include "keys.h"
 
@@ -53,6 +54,9 @@
 
 uint8_t click;
 uint8_t status = STATUS_FIXED;
+
+uint16_t pwm_limit;
+bool blink_rising = false;
 
 void main(void) {
     /*
@@ -69,9 +73,21 @@ void main(void) {
     RA2PPS = 0x02;
     
     init_pwm();
-    pwm_wrduty(&PWM3DCH, 256);
-    pwm_wrduty(&PWM4DCH, 256);
+    pwm_wrduty(&PWM3DCH, PWM_STEP_SIZE * 5);
+    pwm_wrduty(&PWM4DCH, PWM_STEP_SIZE * 5);
     pwm_on();
+    
+    /*
+     * Timer 0 Setup
+     * 1:1 postcaler, 8 bit mode with 1:32768 prescaler and FOSC/4 as source
+     */
+    T0CON0 = 0x00;
+    T0CON1 = 0x4F;
+    
+    INTCONbits.GIE = 1;
+    INTCONbits.PEIE = 1;
+    PIE0bits.TMR0IE = 1;
+    
     
     while (1) {
         click = read_click();
@@ -93,5 +109,4 @@ void main(void) {
             // TODO IMPLEMENT TMR0 for blinking
         }  
     }
-    
 }
