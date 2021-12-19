@@ -2,8 +2,7 @@
 
 uint8_t read_click(void) {
     if (MODE_BTN == 0) {
-        is_clicked(MODE_BTN, MODE_ONE_CLICK);
-        // TODO: Detect double click
+        is_clicked(MODE_BTN, MODE_CLICK);
     }
     else if (UP_BTN == 0) {
         is_pressed(UP_BTN, UP_CLICK);

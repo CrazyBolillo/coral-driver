@@ -63,6 +63,15 @@ bool blink_rising = false;
 #define pwm_dec() pwm_decrease(&PWM3DCH);pwm_decrease(&PWM4DCH);
 #define pwm_set(duty) pwm_wrduty(&PWM3DCH, duty); pwm_wrduty(&PWM4DCH, duty);
 
+#define BLINK_OPTIONS_SIZE 4
+#define BLINK_OFF_LIM 20
+uint8_t blink_off_buffer = 0; // Used to spend some TMR0 cycles with LEDs off
+uint8_t blink_setting = 0;
+uint8_t blink_options[4] = {1, 5, 10, 15};
+
+void blink_together(void);
+void blink_separately(void);
+
 void main(void) {
     /*
      * Pins RA5:2 used as input pins with internal pull-ups enabled
@@ -101,12 +110,15 @@ void main(void) {
                 case UP_CLICK:
                     pwm_inc()
                    break;
+                    
                 case DOWN_CLICK:
                     pwm_dec();
                    break;
-                case MODE_ONE_CLICK: 
+                   
+                case MODE_CLICK: 
+                   // TODO: Set TMR0 prescaler according to pwm_limit
                    status = STATUS_BLINK_TOG;
-                   TMR0H = 1;
+                   TMR0H = blink_options[blink_setting];
                    PIE0bits.TMR0IE = 1;
                    T0CON0bits.T0EN = 1;
                    continue;
@@ -115,41 +127,78 @@ void main(void) {
         }
         if (status == STATUS_BLINK_TOG) {
             switch (click) {
-                case MODE_ONE_CLICK:
+                case UP_CLICK:
+                    blink_setting++;
+                    if (blink_setting == BLINK_OPTIONS_SIZE) {
+                        blink_setting = BLINK_OPTIONS_SIZE - 1;
+                    }
+                    break;
+                    
+                case DOWN_CLICK:
+                    if (blink_setting != 0) {
+                        blink_setting--;
+                    }
+                    break;
+                    
+                case MODE_CLICK:
                     status = STATUS_FIXED;
                     pwm_set(pwm_limit);
                     PIE0bits.TMR0IE = 0;
                     T0CON0bits.T0EN = 0;
                     continue;
             }
+            TMR0H = blink_options[blink_setting];
         }  
     }
 }
 
-void __interrupt() handle_interrupt() {
+void __interrupt() handle_interrupt(void) {
     if (PIR0bits.TMR0IF == 1) {
         T0CON0bits.T0EN = 0;
-        pwm_duty = pwm_rdduty(&PWM3DCH);
-        if (blink_rising == true) {
-            if (pwm_duty < pwm_limit) {
-                pwm_duty++;
-                pwm_set(pwm_duty);
-            }
-            else {
-                blink_rising = false;
-            }
+        
+        if (status == STATUS_BLINK_TOG) {
+            blink_together();
         }
-        else {
-            if (pwm_duty != 0) {
-                pwm_duty--;
-                pwm_set(pwm_duty);
-            }
-            else {
-                blink_rising = true;
-            }
+        else if (status == STATUS_BLINK_SEP) {
+            blink_separately();
         }
         
         PIR0bits.TMR0IF = 0;
         T0CON0bits.T0EN = 1;
     }
+}
+
+void blink_together(void) {
+    pwm_duty = pwm_rdduty(&PWM3DCH);
+    if (blink_rising == true) {
+        if (pwm_duty < pwm_limit) {
+            pwm_duty++;
+            pwm_set(pwm_duty);
+        }
+        else {
+            blink_rising = false;
+        }
+    }
+    else {
+        if (pwm_duty != 0) {
+            pwm_duty--;
+            pwm_set(pwm_duty);
+        }
+        else {
+            blink_off_buffer++;
+            if (blink_off_buffer == BLINK_OFF_LIM) {
+                blink_rising = true;
+                blink_off_buffer = 0;
+            }
+            
+        }
+    }
+}
+
+void blink_separately(void) {
+    /*
+     * TODO: Slowly turn off one side (while the other is off). When said side
+     * is off, start to turn on slowly the other side, turn it slowly off and
+     * repeat the process.
+     */
 }
