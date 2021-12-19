@@ -13,7 +13,7 @@
 #pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enable bit (FSCM timer disabled)
 
 // CONFIG2
-#pragma config MCLRE = OFF      // Master Clear Enable bit (MCLR pin function is port defined function)
+#pragma config MCLRE = ON      // Master Clear Enable bit (MCLR pin function is port defined function)
 #pragma config PWRTE = OFF      // Power-up Timer Enable bit (PWRT disabled)
 #pragma config LPBOREN = OFF    // Low-Power BOR enable bit (ULPBOR disabled)
 #pragma config BOREN = OFF      // Brown-out reset enable bits (Brown-out reset disabled)
@@ -55,8 +55,13 @@
 uint8_t click;
 uint8_t status = STATUS_FIXED;
 
-uint16_t pwm_limit;
+uint16_t pwm_duty;
+uint16_t pwm_limit = PWM_STEP_SIZE * 5;
 bool blink_rising = false;
+
+#define pwm_inc() pwm_increase(&PWM3DCH);pwm_increase(&PWM4DCH);
+#define pwm_dec() pwm_decrease(&PWM3DCH);pwm_decrease(&PWM4DCH);
+#define pwm_set(duty) pwm_wrduty(&PWM3DCH, duty); pwm_wrduty(&PWM4DCH, duty);
 
 void main(void) {
     /*
@@ -69,12 +74,12 @@ void main(void) {
     WPUA = TRISA;
     RA5PPS = 0x05;
     RA4PPS = 0x04;
-    RA3PPS = 0x03;
+//    RA3PPS = 0x03;
     RA2PPS = 0x02;
     
     init_pwm();
-    pwm_wrduty(&PWM3DCH, PWM_STEP_SIZE * 5);
-    pwm_wrduty(&PWM4DCH, PWM_STEP_SIZE * 5);
+    pwm_wrduty(&PWM3DCH, pwm_limit);
+    pwm_wrduty(&PWM4DCH, pwm_limit);
     pwm_on();
     
     /*
@@ -82,7 +87,7 @@ void main(void) {
      * 1:1 postcaler, 8 bit mode with 1:32768 prescaler and FOSC/4 as source
      */
     T0CON0 = 0x00;
-    T0CON1 = 0x4F;
+    T0CON1 = 0x48;
     
     INTCONbits.GIE = 1;
     INTCONbits.PEIE = 1;
@@ -94,19 +99,57 @@ void main(void) {
         if (status == STATUS_FIXED) {
             switch (click) {
                 case UP_CLICK:
-                   pwm_increase(&PWM3DCH);
-                   pwm_increase(&PWM4DCH);
+                    pwm_inc()
                    break;
                 case DOWN_CLICK:
-                   pwm_decrease(&PWM3DCH);
-                   pwm_decrease(&PWM4DCH);
+                    pwm_dec();
                    break;
                 case MODE_ONE_CLICK: 
                    status = STATUS_BLINK_TOG;
+                   TMR0H = 1;
+                   PIE0bits.TMR0IE = 1;
+                   T0CON0bits.T0EN = 1;
+                   continue;
             } 
+            pwm_limit = pwm_rdduty(&PWM3DCH);
         }
         if (status == STATUS_BLINK_TOG) {
-            // TODO IMPLEMENT TMR0 for blinking
+            switch (click) {
+                case MODE_ONE_CLICK:
+                    status = STATUS_FIXED;
+                    pwm_set(pwm_limit);
+                    PIE0bits.TMR0IE = 0;
+                    T0CON0bits.T0EN = 0;
+                    continue;
+            }
         }  
+    }
+}
+
+void __interrupt() handle_interrupt() {
+    if (PIR0bits.TMR0IF == 1) {
+        T0CON0bits.T0EN = 0;
+        pwm_duty = pwm_rdduty(&PWM3DCH);
+        if (blink_rising == true) {
+            if (pwm_duty < pwm_limit) {
+                pwm_duty++;
+                pwm_set(pwm_duty);
+            }
+            else {
+                blink_rising = false;
+            }
+        }
+        else {
+            if (pwm_duty != 0) {
+                pwm_duty--;
+                pwm_set(pwm_duty);
+            }
+            else {
+                blink_rising = true;
+            }
+        }
+        
+        PIR0bits.TMR0IF = 0;
+        T0CON0bits.T0EN = 1;
     }
 }
