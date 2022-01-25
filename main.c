@@ -58,17 +58,19 @@ uint8_t status = STATUS_FIXED;
 uint16_t pwm_duty;
 uint16_t pwm_limit = PWM_STEP_SIZE * 5;
 bool blink_rising = false;
+volatile uint8_t *active_pwm;
 
 #define pwm_inc() pwm_increase(&PWM3DCH);pwm_increase(&PWM4DCH);
 #define pwm_dec() pwm_decrease(&PWM3DCH);pwm_decrease(&PWM4DCH);
 #define pwm_set(duty) pwm_wrduty(&PWM3DCH, duty); pwm_wrduty(&PWM4DCH, duty);
 
 #define BLINK_OPTIONS_SIZE 4
-#define BLINK_OFF_LIM 20
+#define BLINK_OFF_LIM 30
 uint8_t blink_off_buffer = 0; // Used to spend some TMR0 cycles with LEDs off
 uint8_t blink_setting = 0;
 uint8_t blink_options[4] = {1, 5, 10, 15};
 
+void set_prescaler(void);
 void blink_together(void);
 void blink_separately(void);
 
@@ -108,24 +110,25 @@ void main(void) {
         if (status == STATUS_FIXED) {
             switch (click) {
                 case UP_CLICK:
-                    pwm_inc()
-                   break;
+                    pwm_inc();
+                    break;
                     
                 case DOWN_CLICK:
                     pwm_dec();
-                   break;
+                    break;
                    
                 case MODE_CLICK: 
-                   // TODO: Set TMR0 prescaler according to pwm_limit
-                   status = STATUS_BLINK_TOG;
-                   TMR0H = blink_options[blink_setting];
-                   PIE0bits.TMR0IE = 1;
-                   T0CON0bits.T0EN = 1;
-                   continue;
+                    set_prescaler();
+                    status = STATUS_BLINK_TOG;
+                    blink_setting = 0;
+                    TMR0H = blink_options[blink_setting];
+                    PIE0bits.TMR0IE = 1;
+                    T0CON0bits.T0EN = 1;
+                    continue;
             } 
             pwm_limit = pwm_rdduty(&PWM3DCH);
         }
-        if (status == STATUS_BLINK_TOG) {
+        else if ((status == STATUS_BLINK_TOG) || (status == STATUS_BLINK_SEP)) {
             switch (click) {
                 case UP_CLICK:
                     blink_setting++;
@@ -141,11 +144,19 @@ void main(void) {
                     break;
                     
                 case MODE_CLICK:
-                    status = STATUS_FIXED;
-                    pwm_set(pwm_limit);
-                    PIE0bits.TMR0IE = 0;
-                    T0CON0bits.T0EN = 0;
-                    continue;
+                    if (status == STATUS_BLINK_TOG) {
+                        status = STATUS_BLINK_SEP;
+                        pwm_wrduty(&PWM4DCH, 0);
+                        active_pwm = &PWM3DCH;
+                        continue;
+                    }
+                    else if (status == STATUS_BLINK_SEP) {
+                        status = STATUS_FIXED;
+                        pwm_set(pwm_limit);
+                        PIE0bits.TMR0IE = 0;
+                        T0CON0bits.T0EN = 0;
+                        continue;
+                    }
             }
             TMR0H = blink_options[blink_setting];
         }  
@@ -165,6 +176,30 @@ void __interrupt() handle_interrupt(void) {
         
         PIR0bits.TMR0IF = 0;
         T0CON0bits.T0EN = 1;
+    }
+}
+
+void set_prescaler(void) {
+    if (pwm_limit <= 128) {
+        T0CON1 = (0x0A | (T0CON1 & 0xF0));
+    }
+    if (pwm_limit <= 256) {
+        T0CON1 = (0x08 | (T0CON1 & 0xF0));
+    }
+    else if (pwm_limit <= 384) {
+        T0CON1 = (0x07 | (T0CON1 & 0xF0));
+    }
+    else if (pwm_limit <= 512) {
+        T0CON1 = (0x06 | (T0CON1 & 0xF0));
+    }
+    else if (pwm_limit <= 640) {
+        T0CON1 = (0x05 | (T0CON1 & 0xF0));
+    }
+    else if (pwm_limit <= 768) {
+        T0CON1 = (0x04 | (T0CON1 & 0xF0));
+    }
+    else if (pwm_limit <= 896) {
+        T0CON1 = (0x03 | (T0CON1 & 0xF0));
     }
 }
 
@@ -196,9 +231,30 @@ void blink_together(void) {
 }
 
 void blink_separately(void) {
-    /*
-     * TODO: Slowly turn off one side (while the other is off). When said side
-     * is off, start to turn on slowly the other side, turn it slowly off and
-     * repeat the process.
-     */
+    pwm_duty = pwm_rdduty(active_pwm);
+    if (blink_rising == true) {
+        if (pwm_duty < pwm_limit) {
+            pwm_duty++;
+            pwm_wrduty(active_pwm, pwm_duty);
+        }
+        else {
+            blink_rising = false;
+        }
+    }
+    else {
+        if (pwm_duty != 0) {
+            pwm_duty--;
+            pwm_wrduty(active_pwm, pwm_duty);
+        }
+        else {
+            blink_rising = true;
+            if (active_pwm == &PWM3DCH) {
+                active_pwm = &PWM4DCH;
+            }
+            else {
+                active_pwm = &PWM3DCH;
+            }
+        }
+    }
+    
 }
