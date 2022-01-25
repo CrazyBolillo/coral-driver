@@ -10,9 +10,9 @@ uint8_t read_click(void) {
     else if (DOWN_BTN == 0) {
         is_pressed(DOWN_BTN, DOWN_CLICK);
     }
-//    else if (POWER_BTN == 0) {
-//        is_clicked(POWER_BTN, POWER_CLICK);
-//    }
+    else if (POWER_BTN == 0) {
+        is_clicked(POWER_BTN, POWER_CLICK);
+    }
     else {
         return 0;
     }

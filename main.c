@@ -13,7 +13,7 @@
 #pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enable bit (FSCM timer disabled)
 
 // CONFIG2
-#pragma config MCLRE = ON      // Master Clear Enable bit (MCLR pin function is port defined function)
+#pragma config MCLRE = OFF      // Master Clear Enable bit (MCLR pin function is port defined function)
 #pragma config PWRTE = OFF      // Power-up Timer Enable bit (PWRT disabled)
 #pragma config LPBOREN = OFF    // Low-Power BOR enable bit (ULPBOR disabled)
 #pragma config BOREN = OFF      // Brown-out reset enable bits (Brown-out reset disabled)
@@ -51,9 +51,11 @@
 #define STATUS_BLINK_SEP 'S'
 #define STATUS_BLINK_TOG 'T'
 #define STATUS_FIXED 'F'
+#define STATUS_OFF 'I'
 
 uint8_t click;
 uint8_t status = STATUS_FIXED;
+uint8_t previous_status;
 
 uint16_t pwm_duty;
 uint16_t pwm_limit = PWM_STEP_SIZE * 5;
@@ -85,7 +87,7 @@ void main(void) {
     WPUA = TRISA;
     RA5PPS = 0x05;
     RA4PPS = 0x04;
-//    RA3PPS = 0x03;
+    RA3PPS = 0x03;
     RA2PPS = 0x02;
     
     init_pwm();
@@ -107,7 +109,20 @@ void main(void) {
     
     while (1) {
         click = read_click();
-        if (status == STATUS_FIXED) {
+        if (click == POWER_CLICK) {
+            if (status != STATUS_OFF) {
+                pwm_set(0);
+                previous_status = status;
+                status =  STATUS_OFF;
+            }
+            else {
+                status = previous_status;
+                if (status == STATUS_FIXED) {
+                    pwm_set(pwm_limit);
+                }
+            }
+        }
+        else if (status == STATUS_FIXED) {
             switch (click) {
                 case UP_CLICK:
                     pwm_inc();
@@ -200,6 +215,9 @@ void set_prescaler(void) {
     }
     else if (pwm_limit <= 896) {
         T0CON1 = (0x03 | (T0CON1 & 0xF0));
+    }
+    else if (pwm_limit <= 1023) {
+        T0CON1 = (0x02 | (T0CON1 & 0xF0));
     }
 }
 
